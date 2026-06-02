@@ -5,15 +5,15 @@ frappe.pages['restaurant-table-lay'].on_page_load = function (wrapper) {
         title: 'Restaurant Floor Plan',
         single_column: true
     });
+    let current_company = frappe.defaults.get_user_default("Company");
+    let current_branch = frappe.defaults.get_user_default("Branch");
     setInterval(() => {
-        load_tables_by_floor(); // OR location.reload();
+        load_tables_by_floor();
     }, 15000);
 
     page.add_menu_item('Add Table', () => {
         open_table_dialog();
     });
-
-    /* ---------------- CSS ---------------- */
     $(`<style>
         .timer-text {
             font-size: 13px;
@@ -164,7 +164,6 @@ frappe.pages['restaurant-table-lay'].on_page_load = function (wrapper) {
     );
     let main_container = $('<div></div>').appendTo(page.body);
 
-    /* ---------------- TABLE CREATE / UPDATE ---------------- */
 function open_table_dialog(table = null) {
 
     let is_edit = !!table;
@@ -218,15 +217,30 @@ function open_table_dialog(table = null) {
             }
         }
     });
-
-    if (is_edit) {
+     d.fields_dict.restaurant_branch.get_query = function () {
+        let company = d.get_value('company');
+        return {
+            filters: {
+                custom_company: company
+            }
+        };
+    };
+    if (!is_edit) {
+        d.set_value('company', current_company);
+        setTimeout(() => {
+            d.set_value('restaurant_branch', current_branch);
+        }, 200);
+    } else {
         d.set_values(table);
     }
+    d.fields_dict.company.df.onchange = () => {
+        let company = d.get_value('company');
+        d.set_value('restaurant_branch', null);
+        d.fields_dict.restaurant_branch.refresh();
+    };
 
     d.show();
 }
-
-/* ---------------- DELETE TABLE ---------------- */
 function delete_table(table_name) {
     frappe.confirm(
         `Delete table <b>${table_name}</b>?`,
@@ -239,80 +253,7 @@ function delete_table(table_name) {
         }
     );
 }
-/* ---------------- RESERVATION ---------------- */
-// function open_reservation_dialog(table_name) {
 
-//     let d = new frappe.ui.Dialog({
-//         title: `Reserve Table ${table_name}`,
-//         size: 'large',
-//         fields: [
-//             { label: 'Customer', fieldname: 'customer', fieldtype: 'Link', options: 'Customer', reqd: 1 },
-//             { label: 'Contact', fieldname: 'contact', fieldtype: 'Phone', reqd: 1 },
-//             { label: 'Email', fieldname: 'email_id', fieldtype: 'Data' },
-//             { label: 'No of Guests', fieldname: 'guest_no', fieldtype: 'Int', reqd: 1 },
-//             { label: 'Date Time', fieldname: 'datetime', fieldtype: 'Datetime', reqd: 1 },
-//             { label: 'Additional Request', fieldname: 'additional_request', fieldtype: 'Small Text', reqd: 1 }
-//         ],
-//         primary_action_label: 'Reserve',
-//         primary_action(values) {
-//         d.hide();
-
-//             frappe.db.insert({
-//                 doctype: 'Reservation',
-//                 workflow_state: 'Requested',
-//                 customer: values.customer,
-//                 company: values.company,
-//                 restaurant_branch: values.restaurant_branch,
-//                 contact: values.contact,
-//                 email_id: values.email_id,
-//                 guest_no: values.guest_no,
-//                 datetime: values.datetime,
-//                 additional_request: values.additional_request,
-//                 table_info: [{ table: table_name }]
-//             }).then(r => {
-
-//                 // ✅ JS WAY: Update child table
-//                 frappe.call({
-//                     method: 'frappe.client.get',
-//                     args: {
-//                         doctype: 'Restaurant Table',
-//                         name: table_name
-//                     },
-//                     callback(res) {
-
-//                         let table_doc = res.message;
-
-//                         table_doc.reservation_details =
-//                             table_doc.reservation_details || [];
-
-//                         table_doc.reservation_details.push({
-//                             reservation: r.name,
-//                             datetime: values.datetime,
-//                             current_reservation: r.name
-//                         });
-
-
-//                         frappe.call({
-//                             method: 'frappe.client.save',
-//                             args: { doc: table_doc },
-//                             callback() {
-//                                 frappe.show_alert({
-//                                     message: 'Reservation Created',
-//                                     indicator: 'orange'
-//                                 });
-//                                 load_tables_by_floor();
-//                             }
-//                         });
-//                     }
-//                 });
-//             });
-//         }         
-//     });
-
-//     d.show();
-// }
-
-/* ---------------- LOAD TABLES ---------------- */
 function load_tables_by_floor() {
 
     main_container.empty();
@@ -342,7 +283,11 @@ function load_tables_by_floor() {
                         'table_number',
                         'is_active'
                     ],
-                    filters: { is_active: 1 }
+                    filters: { 
+                        is_active: 1,
+                        company: current_company,
+                        restaurant_branch: current_branch || ['!=', '']
+                    }
                 },
                 callback(rt) {
 
@@ -369,9 +314,6 @@ function load_tables_by_floor() {
                         let floor_tables = full_tables.filter(t => t.floor === f.name);
 
                         floor_tables.forEach(t => {
-
-                            // default: do nothing until async completes
-
                             if (!t.reservation_details || t.reservation_details.length === 0) {
                                 render_table(t, wrapper, 'normal');
                                 return;
@@ -412,11 +354,7 @@ function load_tables_by_floor() {
                             });
 
                             Promise.all(res_promises).then(() => {
-
-                                // clean reservations
                                 t.reservation_details = valid_reservation;
-
-                                // 🔥 MOVE TABLE PROPERLY
                                 if (has_upcoming) {
                                     frappe.db.set_value('Restaurant Table', t.name, 'status', 'Reserved');
                                     render_table(t, wrapper, 'upcoming');
@@ -462,10 +400,8 @@ function render_table(t, wrapper, upcoming) {
 
         </div>
     `);
-
-    // 💰 Load occupied table amount
         if (t.status === 'Occupied') {
-            let start_time = moment(t.modified);  // Better: use check-in time field if available
+            let start_time = moment(t.modified);
 
             let timer_element = card.find('.timer-text');
 
@@ -495,10 +431,6 @@ function render_table(t, wrapper, upcoming) {
                 }
             });
         }
-
-
-
-    /* ---------- Actions ---------- */
     let actions = $(`
         <div class="table-actions">
             <span title="Edit"><i class="fa fa-pencil"></i></span>
@@ -516,9 +448,7 @@ function render_table(t, wrapper, upcoming) {
         delete_table(t.name);
     });
     
-    /* ---------- Reservation Logic ---------- */
     if (t.reservation_details && t.reservation_details.length > 0) {
-        // Sirf 1 Icon (📋) dikhana hai chahe 10 reservation ho
         $('<div class="reservation-view" title="View All Reservations">📋</div>')
             .appendTo(card)
             .on('click', e => {
@@ -534,7 +464,6 @@ function render_table(t, wrapper, upcoming) {
             });
     
 
-    // Sahi grid me append karna
     if (upcoming === 'upcoming') {
         wrapper.find('.upcoming-tables').append(card);
     } else {
@@ -567,7 +496,6 @@ function open_reservation_dialog(table_name) {
         primary_action(values) {
             d.hide();
 
-            // Get advance settings first
             Promise.all([
                 frappe.db.get_single_value('Restaurant Setting', 'advance_policy'),
                 frappe.db.get_single_value('Restaurant Setting', 'advance_per_table'),
@@ -578,7 +506,6 @@ function open_reservation_dialog(table_name) {
                     policy === 'Per Guest'
                         ? values.guest_no * per_guest
                         : per_table;
-                // Create reservation WITH advance_amount
                 frappe.db.insert({
                     doctype: 'Reservation',
                     workflow_state: 'Requested',
@@ -593,8 +520,6 @@ function open_reservation_dialog(table_name) {
                     table_info: [{ table: table_name }],
                     advance_amount: advance_amount
                 }).then(r => {
-
-                    // Update Restaurant Table
                     frappe.call({
                         method: 'frappe.client.get',
                         args: { doctype: 'Restaurant Table', name: table_name },
@@ -634,12 +559,17 @@ function open_reservation_dialog(table_name) {
             });
         }
     });
-
+    d.fields_dict.restaurant_branch.get_query = () => {
+        return {
+            filters: {
+                custom_company: d.get_value("company")
+            }
+        };
+    };
+    
     d.show();
 }
 async function open_multi_reservation_dialog(t) {
-
-    // ✅ Add Blink CSS only once
     if (!document.getElementById("reservation-blink-style")) {
         const style = document.createElement("style");
         style.id = "reservation-blink-style";
@@ -669,8 +599,6 @@ async function open_multi_reservation_dialog(t) {
         d.show();
         return;
     }
-
-    // ✅ Fetch reservations
     let reservations_raw = await Promise.all(
         t.reservation_details.map(rd =>
             frappe.db.get_value(
@@ -711,8 +639,6 @@ async function open_multi_reservation_dialog(t) {
 
         let r = reservations[index];
         let m = moment(r.datetime);
-
-        /* ---------------- ACTION BUTTONS ---------------- */
         let actions = [];
 
         if (r.workflow_state === 'Requested') {
@@ -725,8 +651,6 @@ async function open_multi_reservation_dialog(t) {
             actions.push(`<button class="btn btn-xs btn-success" onclick="check_in_reservation('${t.name}','${r.name}')">Check-in</button>`);
             actions.push(`<button class="btn btn-xs btn-danger" onclick="cancel_reservation('${r.name}')">Cancel</button>`);
         }
-
-        /* ---------------- BLINK LOGIC ---------------- */
         let is_blink = false;
 
         if (r.workflow_state === 'Confirmed' && r.datetime) {
@@ -739,8 +663,6 @@ async function open_multi_reservation_dialog(t) {
                 is_blink = true;
             }
         }
-
-        /* ---------------- GET CURRENCY SYMBOL ---------------- */
         let symbol = '';
 
         if (r.company) {
@@ -752,8 +674,6 @@ async function open_multi_reservation_dialog(t) {
                 symbol = curr_res.message ? curr_res.message.symbol : '';
             }
         }
-
-        /* ---------------- TABLE ROW ---------------- */
         html += `
             <tr class="${is_blink ? 'blink-row' : ''}">
                 <td>${index + 1}</td>
@@ -788,7 +708,7 @@ window.cancel_reservation = function (reservation_name) {
     frappe.confirm('Cancel this reservation?', () => {
         frappe.db.set_value('Reservation', reservation_name, 'workflow_state', 'Cancelled')
             .then(() => {
-                frappe.show_alert('Reservation Cancelled');
+                frappe.show_alert(__("Reservation Cancelled"));
                 cur_dialog.hide();
                 load_tables_by_floor();
             });
@@ -802,7 +722,7 @@ window.check_in_reservation = function (table_name, reservation_name) {
 
                 frappe.db.set_value('Restaurant Table', table_name, 'status', 'Occupied')
                     .then(() => {
-                        frappe.show_alert('Customer Checked-In');
+                        frappe.show_alert(__("Customer Checked-In"));
                         cur_dialog.hide();
                         load_tables_by_floor();
                     });
@@ -810,19 +730,13 @@ window.check_in_reservation = function (table_name, reservation_name) {
     });
 };
 window.create_advance_payment = async function (reservation_name) {
-
-    // 🔹 Get reservation details
     let res = await frappe.db.get_doc("Reservation", reservation_name);
 
     if (!res) {
-        frappe.msgprint("Reservation not found");
+        frappe.msgprint(__("Reservation not found"));
         return;
     }
-
-    // 🔹 Get customer full name
     let customer_doc = await frappe.db.get_doc("Customer", res.customer);
-
-    // 🔹 Redirect to new Payment Entry
     frappe.route_options = {
         payment_type: "Receive",
         party_type: "Customer",
@@ -835,96 +749,3 @@ window.create_advance_payment = async function (reservation_name) {
 
     frappe.set_route("Form", "Payment Entry", "new-payment-entry");
 };
-
-// window.create_advance_payment = function (reservation_name) {
-
-//     const payment_mode = "Cash";
-
-//     // 1️⃣ Get reservation details
-//     frappe.db.get_value(
-//         "Reservation",
-//         reservation_name,
-//         ["customer", "advance_amount", "datetime", "company"]
-//     ).then(r => {
-
-//         const res = r.message;
-//         if (!res || !res.advance_amount || res.advance_amount <= 0) {
-//             frappe.msgprint("Advance amount not set");
-//             return;
-//         }
-
-//         const company = res.company || frappe.defaults.get_default("company");
-
-//         // 2️⃣ Get accounts safely from backend
-//         frappe.call({
-//             method: "restaurant_management.restaurant_management.customization.api.table_board.get_payment_accounts",
-//             args: {
-//                 company: company,
-//                 mode_of_payment: payment_mode
-//             }
-//         }).then(acc => {
-
-//             const party_account = acc.message.receivable;
-//             const paid_to = acc.message.paid_to;
-
-//             if (!party_account || !paid_to) {
-//                 frappe.throw("Payment accounts not configured");
-//                 return;
-//             }
-
-//             // 3️⃣ Create Payment Entry
-//             frappe.call({
-//                 method: "frappe.client.insert",
-//                 args: {
-//                     doc: {
-//                         doctype: "Payment Entry",
-//                         payment_type: "Receive",
-//                         company: company,
-
-//                         party_type: "Customer",
-//                         party: res.customer,
-
-//                         posting_date: res.datetime || frappe.datetime.nowdate(),
-//                         reference_date: res.datetime,
-
-//                         mode_of_payment: payment_mode,
-//                         custom_reservation: reservation_name,
-
-//                         paid_from: party_account,
-//                         paid_to: paid_to,
-
-//                         paid_amount: res.advance_amount,
-//                         received_amount: res.advance_amount
-//                     }
-//                 }
-//             }).then(insert_res => {
-
-//                 // 4️⃣ Submit Payment Entry
-//                 return frappe.call({
-//                     method: "frappe.client.submit",
-//                     args: { doc: insert_res.message }
-//                 });
-
-//             }).then(() => {
-
-//                 // 5️⃣ Confirm reservation
-//                 return frappe.db.set_value(
-//                     "Reservation",
-//                     reservation_name,
-//                     "workflow_state",
-//                     "Confirmed"
-//                 );
-
-//             }).then(() => {
-
-//                 frappe.show_alert({
-//                     message: "Advance received & Reservation Confirmed",
-//                     indicator: "green"
-//                 });
-
-//                 if (window.cur_dialog) cur_dialog.hide();
-//                 load_tables_by_floor();
-//             });
-//         });
-//     });
-// };

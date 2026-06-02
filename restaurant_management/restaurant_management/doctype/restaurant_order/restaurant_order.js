@@ -5,7 +5,7 @@ frappe.ui.form.on("Restaurant Order", {
 	refresh(frm) {
         if(!frm.doc.__islocal && frm.doc.workflow_state == "Billed"){
             if(!frm.doc.sales_invoice){
-                frm.add_custom_button("Create Sales Invoice", function(){
+                frm.add_custom_button(__("Create Sales Invoice"), function(){
                     frm.call({
                         method: "make_sales_invoice",
                         doc: frm.doc,

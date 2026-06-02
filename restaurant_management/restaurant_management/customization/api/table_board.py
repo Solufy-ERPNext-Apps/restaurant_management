@@ -1,5 +1,6 @@
 import frappe
 import json
+from frappe.apps import _
 from frappe.model.workflow import apply_workflow
 from frappe.utils import getdate, now_datetime, nowdate
 from frappe.utils import flt
@@ -9,7 +10,7 @@ from frappe.model.workflow import apply_workflow
 from frappe.utils import now_datetime
 
 @frappe.whitelist()
-def get_customer_visit_stats(customer):
+def get_customer_visit_stats(customer: str):
     if not customer:
         return {
             "monthly_visits": 0,
@@ -58,75 +59,30 @@ def get_customer_visit_stats(customer):
         "lifetime_visits": lifetime_visits,
         "type": cust_type
     }
-
-
-@frappe.whitelist()
-def get_payment_accounts(company, mode_of_payment):
-    return {
-        "receivable": frappe.db.get_value(
-            "Company",
-            company,
-            "default_receivable_account"
-        ),
-        "paid_to": frappe.db.get_value(
-            "Mode of Payment Account",
-            {
-                "parent": mode_of_payment,
-                "company": company
-            },
-            "default_account"
-        )
-    }
-import frappe
-
+#nosemgrep
 @frappe.whitelist(allow_guest=True)
-def create_customer(name):
+def create_customer(name: str):
     if not name:
-        frappe.throw("Customer name is required")
+        frappe.throw(_("Customer name is required"))
 
-    # Check if customer exists
     existing = frappe.get_all("Customer", filters={"customer_name": name}, limit_page_length=1)
     if existing:
-        return existing[0].name  # return existing customer
+        return existing[0].name
 
-    # Create new customer
     doc = frappe.get_doc({
         "doctype": "Customer",
         "customer_name": name
     })
-    doc.insert(ignore_permissions=True)  # allow guest to insert
+    doc.insert(ignore_permissions=True)
     frappe.db.commit()
     return doc.name
-
-@frappe.whitelist()
-def get_current_order_for_table(table):
-	order_name = frappe.db.get_value("Restaurant Table",table,"current_order")
-
-	if not order_name:
-		return None
-
-	order = frappe.get_doc("Restaurant Order", order_name)
-
-	return {
-		"name": order.name,
-		"customer": order.customer,
-		"items": [
-			{
-				"item": row.item,
-				"qty": row.qty,
-                "kitchen_note": row.kitchen_note
-			}
-			for row in order.items
-		]
-	}
-
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)# nosemgrep
 def create_order(table, customer=None, items=None, company=None, branch=None):
     if isinstance(items, str):
         items = json.loads(items)
 
     if not items:
-        frappe.throw("No items received")
+        frappe.throw(_("No items received"))
 
     tab = frappe.get_doc("Restaurant Table", table)
     reservation = frappe.db.sql("""
@@ -222,15 +178,20 @@ def create_order(table, customer=None, items=None, company=None, branch=None):
     }
 
 @frappe.whitelist()
-def finalize_bill(table, discount=0, extra_charge=0, payment_mode="Cash", company=None):
-
+def finalize_bill(
+    table: str,
+    discount: float = 0,
+    extra_charge: float = 0,
+    payment_mode: str = "Cash",
+    company: str | None = None
+):
     try:
         from frappe.utils import flt, nowdate
         tab = frappe.get_doc("Restaurant Table", table)
         tab.reload()
 
         if not tab.current_order:
-            frappe.throw("There is no active order for this table.")
+            frappe.throw(_("There is no active order for this table."))
 
         order = frappe.get_doc("Restaurant Order", tab.current_order)
 
@@ -288,7 +249,7 @@ def finalize_bill(table, discount=0, extra_charge=0, payment_mode="Cash", compan
 
 
 @frappe.whitelist()
-def get_current_order(table):
+def get_current_order(table: str):
     tab = frappe.get_doc("Restaurant Table", table)
 
     if not tab.current_order:

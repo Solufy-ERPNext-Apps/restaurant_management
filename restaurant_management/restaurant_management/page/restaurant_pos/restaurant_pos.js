@@ -3,7 +3,7 @@ frappe.pages['restaurant-pos'].on_page_load = function(wrapper) {
     let table_name = route[1] ? decodeURIComponent(route[1]) : null;
 
     if (!table_name) {
-        frappe.msgprint("Table not found in route");
+        frappe.msgprint(__("Table not found in route"));
         return;
     }
 
@@ -172,7 +172,6 @@ frappe.pages['restaurant-pos'].on_page_load = function(wrapper) {
 }
 
 function load_customer_visit_info(customer) {
-
     frappe.call({
         method: "restaurant_management.restaurant_management.customization.api.table_board.get_customer_visit_stats",
         args: { customer: customer },
@@ -302,7 +301,9 @@ function load_customer_visit_info(customer) {
 
         window.updateQty = (code, val) => {
             let itm = order_items[code];
-            if (itm.qty + val < itm.sent_qty) return frappe.show_alert("KOT items can't be reduced", "orange");
+            if (itm.qty + val < itm.sent_qty) {
+                return frappe.show_alert(__("KOT items can't be reduced"), "orange");
+            }
             itm.qty += val;
             if (itm.qty <= 0) delete order_items[code];
             render_order();
@@ -443,7 +444,7 @@ function load_customer_visit_info(customer) {
     $('#kot-btn').on('click', () => {
         let send = [];
         Object.values(order_items).forEach(i => { if (i.qty > i.sent_qty) send.push({item: i.item, qty: i.qty - i.sent_qty, kitchen_note: i.kitchen_note || ""}); });
-        if (!send.length) return frappe.msgprint("No new items");
+        if (!send.length) return frappe.msgprint(__("No new items"));
         frappe.call({
             method: "restaurant_management.restaurant_management.customization.api.table_board.create_order",
             args: { 
@@ -455,8 +456,8 @@ function load_customer_visit_info(customer) {
                 customer: selected_customer 
             },
             callback: (r) => {
-                frappe.show_alert("KOT Sent", "green"); 
-                load_existing_order(); // This will refresh current_order_id
+                frappe.show_alert(__("KOT Sent"), "green"); 
+                load_existing_order();
             }
         });
     });
@@ -474,8 +475,7 @@ function load_customer_visit_info(customer) {
             },
             callback: (r) => {
                 if (r.message) {
-                    frappe.show_alert("Invoice Created Successfully", "green");
-                    // Clear LocalStorage Customer on complete
+                    frappe.show_alert(__("Invoice Created Successfully"), "green");
                     localStorage.removeItem('pos_customer');
                     window.open(`/app/print/Sales Invoice/${r.message.invoice_id}`, '_blank');
                     frappe.set_route('restaurant-table-lay');
@@ -484,9 +484,6 @@ function load_customer_visit_info(customer) {
         });
     });
 
-    /* ---------------- INITIALIZATION ---------------- */
-    
-    // Load Companies
      frappe.call({
         method: "frappe.client.get_list",
         args: { doctype: "Company", fields: ["name"] },
