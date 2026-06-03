@@ -4,17 +4,13 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-01-23 10:11:55.392524",
+ "modified": "2026-06-02 14:57:14.689607",
  "modified_by": "Administrator",
  "module": "Restaurant Management",
  "name": "waiter-orders",
  "owner": "Administrator",
  "page_name": "waiter-orders",
- "roles": [
-  {
-   "role": "Waiter"
-  }
- ],
+ "roles": [],
  "script": null,
  "standard": "Yes",
  "style": null,

@@ -4,17 +4,13 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2025-12-26 15:58:25.256352",
+ "modified": "2026-06-02 15:26:12.288905",
  "modified_by": "Administrator",
  "module": "Restaurant Management",
  "name": "kitchen_display",
  "owner": "Administrator",
  "page_name": "kitchen_display",
- "roles": [
-  {
-   "role": "Chef"
-  }
- ],
+ "roles": [],
  "script": null,
  "standard": "Yes",
  "style": null,

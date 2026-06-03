@@ -1,20 +1,16 @@
 {
  "content": null,
- "creation": "2026-04-01 14:40:00.000000",
+ "creation": "2026-04-01 14:40:00",
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-04-01 14:40:00.000000",
+ "modified": "2026-06-02 15:25:49.298841",
  "modified_by": "Administrator",
  "module": "Restaurant Management",
  "name": "restaurant-dashboard",
  "owner": "Administrator",
  "page_name": "restaurant-dashboard",
- "roles": [
-  {
-   "role": "System Manager"
-  }
- ],
+ "roles": [],
  "script": null,
  "standard": "Yes",
  "style": null,

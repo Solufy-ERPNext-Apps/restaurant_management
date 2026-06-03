@@ -4,17 +4,13 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-01-07 14:46:16.736850",
+ "modified": "2026-06-02 15:26:04.849054",
  "modified_by": "Administrator",
  "module": "Restaurant Management",
  "name": "restaurant-menu",
  "owner": "Administrator",
  "page_name": "restaurant-menu",
- "roles": [
-  {
-   "role": "System Manager"
-  }
- ],
+ "roles": [],
  "script": null,
  "standard": "Yes",
  "style": null,

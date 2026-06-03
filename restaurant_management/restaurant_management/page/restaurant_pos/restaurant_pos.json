@@ -4,23 +4,13 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-02-04 17:37:36.655766",
+ "modified": "2026-06-02 15:25:58.100216",
  "modified_by": "Administrator",
  "module": "Restaurant Management",
  "name": "restaurant-pos",
  "owner": "Administrator",
  "page_name": "restaurant-pos",
- "roles": [
-  {
-   "role": "Cashier"
-  },
-  {
-   "role": "System Manager"
-  },
-  {
-   "role": "Restaurant Manager"
-  }
- ],
+ "roles": [],
  "script": null,
  "standard": "Yes",
  "style": null,
