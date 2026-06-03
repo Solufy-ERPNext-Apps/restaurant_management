@@ -5,5 +5,7 @@
 from frappe.model.document import Document
 
 class RestaurantTable(Document):
-    pass
+    def validate(self):
+        if self.status == "Free":
+            self.db_set("empty_seat", 0)
             
